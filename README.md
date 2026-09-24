@@ -100,8 +100,8 @@ real test windows; do not run it over active work without a suitable window.
 ## License
 
 Boxboard builds on the MIT-licensed [Bevdox](https://github.com/anydot/bevdox)
-by Premysl Hruby. The original license is in [LICENSE](LICENSE), and the
-license for adapted virtual-desktop interop is in
+by [@anydot](https://github.com/anydot). The original license is in
+[LICENSE](LICENSE), and the license for adapted virtual-desktop interop is in
 [Boxboard/THIRD_PARTY_LICENSE.txt](Boxboard/THIRD_PARTY_LICENSE.txt). Both
 notices are included with the release executable.
 
