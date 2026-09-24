@@ -1,0 +1,62 @@
+name: Create Release Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump level'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine next version
+        id: version
+        shell: bash
+        run: |
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            latest="v0.0.0"
+          fi
+
+          IFS='.' read -r major minor patch <<< "${latest#v}"
+          major=${major:-0}
+          minor=${minor:-0}
+          patch=${patch:-0}
+
+          case "${{ inputs.bump }}" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+
+          echo "tag=v${major}.${minor}.${patch}" >> "$GITHUB_OUTPUT"
+          echo "Next version: v${major}.${minor}.${patch}"
+
+      - name: Create and push tag
+        run: |
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
+
+  release:
+    needs: tag
+    uses: ./.github/workflows/build.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}

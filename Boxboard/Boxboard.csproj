@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Boxboard.ico</ApplicationIcon>
+    <AssemblyTitle>Boxboard</AssemblyTitle>
+    <Description>Boxboard</Description>
+    <Product>Boxboard</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="Assets\Boxboard.ico" />
+    <ProjectReference Include="..\Bevdox\Bevdox.csproj" />
+    <None Update="THIRD_PARTY_LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\LICENSE" Link="LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

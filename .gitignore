@@ -1,0 +1,29 @@
+## Build output
+bin/
+obj/
+out/
+publish/
+
+## IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+## NuGet
+*.nupkg
+**/packages/
+
+## OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## Logs / dumps
+*.log
+*.crashdump
+*.binlog
+TestResults/

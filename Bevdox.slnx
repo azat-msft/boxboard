@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Bevdox/Bevdox.csproj" />
+  <Project Path="Boxboard/Boxboard.csproj" />
+  <Project Path="Boxboard.Tests/Boxboard.Tests.csproj" />
+</Solution>

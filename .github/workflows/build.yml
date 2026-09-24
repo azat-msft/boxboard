@@ -1,0 +1,89 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag name for release'
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore Bevdox.slnx -bl:restore.binlog
+
+      - name: Build
+        run: dotnet build Bevdox.slnx -c Release --no-restore -bl:build.binlog
+
+      - name: Test assignments, persistence, discovery and WPF UI
+        run: dotnet test Boxboard.Tests/Boxboard.Tests.csproj -c Release --no-build --logger trx -bl:test.binlog
+
+      - name: Publish Boxboard (self-contained)
+        run: >
+          dotnet publish Boxboard/Boxboard.csproj
+          -c Release
+          -r win-x64
+          --self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish/boxboard
+          -bl:publish-boxboard.binlog
+
+      - name: Upload Boxboard build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxboard-win-x64
+          path: |
+            publish/boxboard/Boxboard.exe
+            publish/boxboard/LICENSE.txt
+            publish/boxboard/THIRD_PARTY_LICENSE.txt
+
+      - name: Publish (self-contained)
+        run: >
+          dotnet publish Bevdox/Bevdox.csproj
+          -c Release
+          -r win-x64
+          --self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+          -bl:publish-bevdox.binlog
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bevdox-win-x64
+          path: publish/Bevdox.exe
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: |
+            publish/Bevdox.exe
+            publish/boxboard/Boxboard.exe
+            publish/boxboard/LICENSE.txt
+            publish/boxboard/THIRD_PARTY_LICENSE.txt
+          generate_release_notes: true
