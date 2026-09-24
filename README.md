@@ -80,9 +80,6 @@ connection is active. Boxboard never clicks a Windows App reconnect dialog,
 does not bypass Windows lock or sign-in, and does not store credentials.
 If a virtual desktop disappears, its assignments remain saved, but Boxboard
 cannot arrange clients on that missing desktop.
-If Windows App reopens a client on the wrong virtual desktop after reconnecting,
-use **Re-apply** on that desktop's card. Automatic recovery of that case is not
-yet reliable.
 
 ## Development
 
