@@ -248,7 +248,8 @@ public partial class MainWindow : Window
             var refresh = _board.Settings.LastRefreshUtc is { } time ? $" Last discovery: {time.ToLocalTime():g}." : "";
             var desktops = _board.Layouts.Select(layout => layout.DesktopId).Distinct().Count();
             var monitors = _monitorChoices.Count;
-            StatusText.Text = $"{desktops} desktops · {monitors} monitors · " +
+            StatusText.Text = $"{desktops} desktop{(desktops == 1 ? "" : "s")} · " +
+                $"{monitors} monitor{(monitors == 1 ? "" : "s")} · " +
                 $"{_board.Options.Count} known Dev Boxes.{refresh}";
         }
     }
@@ -295,6 +296,7 @@ public partial class MainWindow : Window
         InitializeTrayIcon();
         if (_demo)
         {
+            await SeedDemoLayoutsAsync();
             await RefreshAsync();
             return;
         }
@@ -436,6 +438,33 @@ public partial class MainWindow : Window
         Show();
         WindowState = WindowState.Normal;
         Activate();
+    }
+
+    /// <summary>
+    /// The offline demo reads the real monitors so its cards show the same desktop and
+    /// monitor grouping as a live board. No client window is ever touched in demo mode.
+    /// </summary>
+    private async Task SeedDemoLayoutsAsync()
+    {
+        if (_board.Settings.PrimaryDesktopId is not null)
+            return;
+        try { _monitorChoices = _monitors.GetMonitors(); }
+        catch (Exception ex)
+        {
+            _log.Write("Monitors", $"Offline demo could not read the monitors: {ex.Message}");
+            return;
+        }
+        foreach (var (desktop, name) in new[] { (Guid.NewGuid(), "Desktop 1"), (Guid.NewGuid(), "Desktop 2") })
+            foreach (var monitor in _monitorChoices)
+            {
+                await _board.SelectDesktopAsync(new LayoutKey(desktop, monitor.Id), name,
+                    monitor.Number, _lifetime.Token);
+                await _board.EnsureFourCellsAsync(_lifetime.Token);
+            }
+        // Leave the first card selected so the demo's drag and drop targets it by default.
+        var primary = _board.Layouts[0];
+        await _board.SelectDesktopAsync(primary.Key, primary.Name, primary.MonitorNumber, _lifetime.Token);
+        _log.Write("Monitors", $"Offline demo laid out 2 desktops across {_monitorChoices.Count} monitor(s).");
     }
 
     /// <summary>The monitor whose work area matches, falling back to the primary monitor.</summary>

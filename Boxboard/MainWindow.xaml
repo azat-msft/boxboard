@@ -99,7 +99,7 @@
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="IdentifyButton" Content="Identify monitors" Click="Identify_Click"
                                 MinHeight="28" Padding="9,4" Margin="0,0,5,0"
-                                ToolTip="Show each monitor's number on that monitor, like Windows display settings." />
+                                ToolTip="Show each monitor's number on that monitor. Boxboard numbers them left to right." />
                         <Button x:Name="RefreshButton" Content="Refresh" Click="Refresh_Click"
                                 MinHeight="28" Padding="9,4" Margin="0,0,5,0" />
                         <Button x:Name="LogButton" Content="Log" Click="Log_Click"

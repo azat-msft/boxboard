@@ -1,14 +1,14 @@
 using System.ComponentModel;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using Boxboard.Models;
 
 namespace Boxboard.Services;
 
 /// <summary>
-/// Enumerates the physical monitors Windows currently reports. The numbers match the
-/// ones the Windows display settings page shows, because both come from the adapter
-/// device name (<c>\\.\DISPLAY1</c>).
+/// Enumerates the physical monitors Windows currently reports and numbers them left to
+/// right, so the numbers stay predictable. Adapter device names such as
+/// <c>\\.\DISPLAY577</c> in a remote session carry no usable number, which is why the
+/// position decides it and "Identify monitors" shows the result on screen.
 /// </summary>
 public sealed partial class MonitorShell : IMonitors
 {
@@ -26,37 +26,29 @@ public sealed partial class MonitorShell : IMonitors
             throw new Win32Exception(Marshal.GetLastPInvokeError());
         GC.KeepAlive(callback);
 
-        var monitors = new List<MonitorInfo>();
+        var found = new List<(string Id, PixelRect Bounds, PixelRect WorkArea, bool Primary)>();
         foreach (var handle in handles)
         {
             var info = NewMonitorInfo();
             if (GetMonitorInfoW(handle, ref info) == 0)
                 throw new Win32Exception(Marshal.GetLastPInvokeError());
-            var device = ReadDevice(info);
-            monitors.Add(new(device, ParseNumber(device, monitors.Count + 1),
-                info.Monitor.ToPixels(), info.Work.ToPixels(), (info.Flags & 1) != 0));
+            found.Add((ReadDevice(info), info.Monitor.ToPixels(), info.Work.ToPixels(), (info.Flags & 1) != 0));
         }
-        if (monitors.Count == 0)
+        if (found.Count == 0)
             throw new InvalidOperationException("Windows reported no monitors.");
-        if (monitors.Select(monitor => monitor.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != monitors.Count)
+        if (found.Select(monitor => monitor.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != found.Count)
             throw new InvalidOperationException("Windows reported duplicate monitor device names.");
-        return [.. monitors.OrderBy(monitor => monitor.Number)];
+        return Number(found);
     }
 
-    /// <summary>
-    /// Windows names adapters <c>\\.\DISPLAY1</c>, <c>\\.\DISPLAY2</c> and so on, and the
-    /// display settings page shows that same trailing number.
-    /// </summary>
-    internal static int ParseNumber(string device, int fallback)
-    {
-        var digits = device.AsSpan().TrimEnd();
-        var start = digits.Length;
-        while (start > 0 && char.IsAsciiDigit(digits[start - 1]))
-            start--;
-        return start < digits.Length &&
-            int.TryParse(digits[start..], NumberStyles.None, CultureInfo.InvariantCulture, out var number) &&
-            number > 0 ? number : fallback;
-    }
+    /// <summary>Numbers monitors from 1, left to right and then top to bottom.</summary>
+    internal static IReadOnlyList<MonitorInfo> Number(
+        IEnumerable<(string Id, PixelRect Bounds, PixelRect WorkArea, bool Primary)> monitors) =>
+        [.. monitors
+            .OrderBy(monitor => monitor.Bounds.X)
+            .ThenBy(monitor => monitor.Bounds.Y)
+            .Select((monitor, index) =>
+                new MonitorInfo(monitor.Id, index + 1, monitor.Bounds, monitor.WorkArea, monitor.Primary))];
 
     private static MonitorInfoEx NewMonitorInfo()
     {

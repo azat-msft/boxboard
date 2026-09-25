@@ -66,8 +66,10 @@ assignments.
   Dropping an unassigned tray entry onto an occupied slot replaces its Dev Box,
   returning the replaced one to the tray without closing its client.
 - **Identify monitors** shows each monitor's number on that monitor for a few
-  seconds, the same numbering the Windows display settings page uses. Use it to
-  tell which card is which before dragging Dev Boxes into it.
+  seconds. Boxboard numbers monitors from left to right, so use this to tell
+  which card is which before dragging Dev Boxes into it. A Dev Box stays pinned
+  to its monitor even if the numbering shifts, because the pin uses the
+  monitor's device identity.
 - Layouts saved by an earlier version are pinned automatically on first start:
   each one keeps the monitor it was already using. If a pinned monitor is
   disconnected, its card stays with the assignments saved but cannot be edited
