@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Boxboard.Models;
 using Boxboard.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -184,6 +185,60 @@ public sealed class MonitorCardLayoutTests
             finally { owner.Close(); }
             return Task.CompletedTask;
         }, TimeSpan.FromSeconds(20));
+    }
+
+    [TestMethod]
+    [DoNotParallelize]
+    public Task LayoutPicker_ChangesOnlyTheMonitorCardItWasOpenedFrom()
+    {
+        return WpfTestHost.RunAsync(async () =>
+        {
+            var (board, first, _) = await PinnedBoardAsync();
+            var window = new MainWindow(board, demo: true, "offline-layout", TwoMonitors());
+            try
+            {
+                var card = window.Cards.Single(item => item.DesktopId == first && item.MonitorId == Second);
+                Assert.IsTrue(card.CanChooseLayout, "The layout picker should be usable on a known monitor card.");
+                Realize(window);
+                var picker = MainWindow.Descendants<Button>(window.DesktopCards)
+                    .Single(button => ReferenceEquals(button.DataContext, card) &&
+                        button.Content is WindowLayoutChoice);
+                Assert.IsTrue(picker.IsEnabled);
+
+                // Open it the way a click does, so the menu resolves its card through the nested templates.
+                picker.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var menu = picker.ContextMenu!;
+                Assert.AreSame(picker, menu.PlacementTarget);
+                Assert.AreSame(card, menu.DataContext);
+                var choice = menu.Items.Cast<MenuItem>()
+                    .Single(item => (WindowLayoutMode)item.Tag == WindowLayoutMode.SideBySide);
+                Assert.AreSame(card, choice.DataContext);
+                choice.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                menu.IsOpen = false;
+                await SettleAsync(window);
+
+                Assert.AreEqual(WindowLayoutMode.SideBySide, board.GetLayoutMode(new LayoutKey(first, Second)));
+                Assert.AreEqual(WindowLayoutMode.Quadrants, board.GetLayoutMode(new LayoutKey(first, First)));
+                var refreshed = window.Cards.Single(item => item.DesktopId == first && item.MonitorId == Second);
+                Assert.AreEqual(WindowLayoutMode.SideBySide, refreshed.SelectedMode.Mode);
+                Assert.HasCount(2, refreshed.Cells);
+            }
+            finally { window.Close(); }
+        }, TimeSpan.FromSeconds(20));
+    }
+
+    private static void Realize(MainWindow window)
+    {
+        var root = (FrameworkElement)window.Content;
+        root.Measure(new Size(680, window.MaxHeight));
+        root.Arrange(new Rect(0, 0, 680, Math.Clamp(root.DesiredSize.Height, window.MinHeight, window.MaxHeight)));
+        root.UpdateLayout();
+    }
+
+    private static async Task SettleAsync(Window window)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+            await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
     }
 
     [TestMethod]

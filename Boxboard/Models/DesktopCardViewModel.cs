@@ -22,6 +22,8 @@ public sealed class DesktopCardViewModel
     public required WindowLayoutMode Mode { get; init; }
     public required bool KeepConnected { get; init; }
     public required bool CanEdit { get; init; }
+    /// <summary>The window arrangement is a saved preference, so the offline demo can change it too.</summary>
+    public required bool CanChooseLayout { get; init; }
     public required bool PendingApply { get; init; }
     public required IReadOnlyList<CellViewModel> Cells { get; init; }
     public required string HiddenAssignments { get; init; }

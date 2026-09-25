@@ -197,7 +197,7 @@
                                             <Button Grid.Column="1" Width="164" MinHeight="34" Padding="6,2"
                                                     Margin="0,0,9,0" Content="{Binding SelectedMode}"
                                                     ContentTemplate="{StaticResource SelectedLayoutPreview}"
-                                                    IsEnabled="{Binding CanEdit}" Click="CardLayoutPicker_Click"
+                                                    IsEnabled="{Binding CanChooseLayout}" Click="CardLayoutPicker_Click"
                                                     ToolTip="Choose a window layout by its preview"
                                                     AutomationProperties.Name="{Binding SelectedMode.Name}">
                                                 <Button.ContextMenu>

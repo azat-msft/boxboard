@@ -181,6 +181,7 @@ public partial class MainWindow : Window
             MonitorName = target.MonitorName, MonitorDetails = target.MonitorDetails,
             KeepConnected = primaryDemo || !known ? false : _board.IsKeepConnected(key),
             CanEdit = !_demo && available && runtime is not null,
+            CanChooseLayout = known && available && (_demo || runtime is not null),
             PendingApply = runtime?.PendingApply == true,
             Cells = cells,
             HiddenAssignments = hidden.Count == 0 ? "" :
@@ -612,22 +613,25 @@ public partial class MainWindow : Window
 
     private async void CardLayoutChoice_Click(object sender, RoutedEventArgs e)
     {
-        if (_demo || sender is not MenuItem { DataContext: DesktopCardViewModel card,
-            Tag: WindowLayoutMode mode } || mode == card.Mode || !card.CanEdit)
+        if (sender is not MenuItem { DataContext: DesktopCardViewModel card, Tag: WindowLayoutMode mode } ||
+            mode == card.Mode || !card.CanChooseLayout)
             return;
         var selected = DesktopCardViewModel.LayoutChoices.Single(choice => choice.Mode == mode);
         await RunAsync(async () =>
         {
             var previous = _board.GetVisibleSlots(card.Key);
             await _board.SetLayoutModeAsync(card.Key, selected.Mode, _lifetime.Token);
-            var runtime = _layouts[card.Key];
             var removed = previous.Skip(_board.GetVisibleSlots(card.Key).Count)
                 .Where(slot => slot.MachineId is not null).ToList();
-            foreach (var slot in removed)
-                runtime.Sessions.For(_board.GetSlots(card.Key).Single(item => item.Id == slot.Id));
-            runtime.PendingApply = true;
-            runtime.KeepConnected.Reset();
-            await ApplyVisibleLayoutAsync(card.Key, runtime);
+            // The offline demo saves the choice but has no client windows to rearrange.
+            if (_layouts.TryGetValue(card.Key, out var runtime))
+            {
+                foreach (var slot in removed)
+                    runtime.Sessions.For(_board.GetSlots(card.Key).Single(item => item.Id == slot.Id));
+                runtime.PendingApply = true;
+                runtime.KeepConnected.Reset();
+                await ApplyVisibleLayoutAsync(card.Key, runtime);
+            }
             _log.Write("Layout", $"{card.Name} · {card.MonitorName}: {selected.Name} applied automatically." +
                 (removed.Count == 0 ? "" : $" {removed.Count} Dev Box assignment(s) returned to the tray."));
         });
