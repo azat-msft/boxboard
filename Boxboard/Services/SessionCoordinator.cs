@@ -391,7 +391,7 @@ public sealed class SessionCoordinator(
         }
         if (bounds.Width < 100 || bounds.Height < 100 || !environment.WorkArea.Contains(bounds))
         {
-            session.Status = "Fit Boxboard to one monitor before arranging its windows.";
+            session.Status = "The slot does not fit the pinned monitor's work area.";
             return;
         }
         if (bound is null && nameIsUnique && candidates.Count == 1)

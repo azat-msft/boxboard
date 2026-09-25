@@ -7,6 +7,8 @@ public sealed class CellViewModel : INotifyPropertyChanged
 {
     public required SlotAssignment Slot { get; init; }
     public Guid DesktopId { get; init; }
+    public string? MonitorId { get; init; }
+    public LayoutKey Key => new(DesktopId, MonitorId);
     public required string MachineName { get; init; }
     public required string MachineDetails { get; init; }
     public bool IsAssigned => Slot.MachineId is not null;
