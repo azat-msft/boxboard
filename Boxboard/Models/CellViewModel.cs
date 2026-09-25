@@ -19,6 +19,8 @@ public sealed class CellViewModel : INotifyPropertyChanged
         set { if (_isDragTarget != value) { _isDragTarget = value; PropertyChanged?.Invoke(this, new(nameof(IsDragTarget))); } }
     }
     public bool CanBind { get; init; }
+    /// <summary>Set when the client is fullscreen, which stops Boxboard from placing it.</summary>
+    public bool FullscreenBlocked { get; set; }
     private bool _canConnect;
     public bool CanConnect
     {

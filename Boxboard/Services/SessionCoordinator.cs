@@ -7,6 +7,8 @@ public sealed class CellSession
 {
     public WindowIdentity? BoundWindow { get; internal set; }
     public bool ReconnectPromptSuspected { get; internal set; }
+    /// <summary>The bound client has no title bar or resize frame, so it cannot be placed.</summary>
+    public bool Fullscreen { get; internal set; }
     internal bool ReconnectCloseFailed { get; set; }
     private string _status = "No client window bound. Drag a machine here, then bind or connect.";
     internal Action<string>? Report { get; init; }
@@ -438,6 +440,7 @@ public sealed class SessionCoordinator(
                     _startupPlacements[candidate.Identity] = _clock.GetUtcNow().AddSeconds(15);
             }
         }
+        session.Fullscreen = bound?.Fullscreen == true;
         if (bound is null)
         {
             if (session.Connecting && session.Deadline is { } deadline && _clock.GetUtcNow() >= deadline)
@@ -464,7 +467,8 @@ public sealed class SessionCoordinator(
             session.Connecting = false;
             session.Deadline = null;
             session.Failed = false;
-            session.Status = "Client is fullscreen; placement is paused. Windows App launch route/display state needs verification.";
+            session.Status = "Client is fullscreen, so Boxboard will not move it. " +
+                "Set this Dev Box to windowed in the Windows App display settings, then use Re-apply.";
             return;
         }
         if (_preservedExisting.Contains(bound.Identity))

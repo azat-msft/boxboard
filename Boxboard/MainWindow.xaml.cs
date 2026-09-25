@@ -199,6 +199,7 @@ public partial class MainWindow : Window
 
     private void UpdateCellState(CellViewModel cell, LayoutRuntime? runtime, bool available)
     {
+        cell.FullscreenBlocked = false;
         if (!cell.IsAssigned)
         {
             cell.StateText = "Empty";
@@ -220,6 +221,12 @@ public partial class MainWindow : Window
         else if (session.Connecting)
         {
             cell.StateText = "Connecting";
+            cell.StateBrush = AttentionBrush;
+        }
+        else if (session.Fullscreen)
+        {
+            cell.FullscreenBlocked = true;
+            cell.StateText = "Fullscreen: not placed";
             cell.StateBrush = AttentionBrush;
         }
         else if (session.BoundWindow is { } identity &&
@@ -244,6 +251,9 @@ public partial class MainWindow : Window
         if (names is { Count: > 0 })
             StatusText.Text = $"Possible reconnect prompt: {string.Join(", ", names)}. " +
                 "Keep on may restart the client; verify in Windows App.";
+        else if (FullscreenClients() is { Count: > 0 } fullscreen)
+            StatusText.Text = $"Not placed because the client is fullscreen: {string.Join(", ", fullscreen)}. " +
+                "Set these Dev Boxes to windowed in the Windows App display settings, then use Re-apply.";
         else
         {
             var refresh = _board.Settings.LastRefreshUtc is { } time ? $" Last discovery: {time.ToLocalTime():g}." : "";
@@ -254,6 +264,11 @@ public partial class MainWindow : Window
                 $"{_board.Options.Count} known Dev Boxes.{refresh}";
         }
     }
+
+    /// <summary>Dev Boxes whose client cannot be placed because it has no title bar or resize frame.</summary>
+    internal IReadOnlyList<string> FullscreenClients() => DesktopCards.ItemsSource is null ? [] :
+        [.. Cells.Where(cell => cell.FullscreenBlocked).Select(cell => cell.MachineName)
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(name => name, StringComparer.OrdinalIgnoreCase)];
 
     private void ShowError()
     {
