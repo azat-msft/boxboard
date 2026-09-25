@@ -20,8 +20,19 @@ public static partial class MonitorIdentityOverlay
     {
         if (monitors.Count == 0)
             throw new ArgumentException("No monitors to identify.", nameof(monitors));
-        var badges = monitors.Where(monitor => monitor.Available)
-            .Select(monitor => Create(monitor, duration ?? DefaultDuration)).ToList();
+        var badges = new List<Window>();
+        try
+        {
+            foreach (var monitor in monitors.Where(monitor => monitor.Available))
+                badges.Add(Create(monitor, duration ?? DefaultDuration));
+        }
+        catch
+        {
+            // Never leave half of the screens covered by a badge that no timer will close.
+            foreach (var badge in badges)
+                badge.Close();
+            throw;
+        }
         if (badges.Count == 0)
             throw new InvalidOperationException("None of the saved monitors is connected.");
         return badges;
@@ -84,12 +95,21 @@ public static partial class MonitorIdentityOverlay
         var handle = new WindowInteropHelper(window).Handle;
         if (handle == 0)
             return;
+        // WS_EX_TRANSPARENT keeps clicks going to whatever is underneath, WS_EX_NOACTIVATE
+        // stops the badge stealing focus, WS_EX_TOOLWINDOW keeps it out of Alt+Tab.
+        var style = GetWindowLongPtrW(handle, -20);
+        SetWindowLongPtrW(handle, -20, style | 0x20 | 0x08000000 | 0x80);
         var width = Math.Clamp(bounds.Width / 3, 260, 520);
         var height = Math.Clamp(bounds.Height / 4, 180, 300);
         // SWP_NOACTIVATE | SWP_NOZORDER
         SetWindowPos(handle, 0, bounds.X + (bounds.Width - width) / 2,
             bounds.Y + (bounds.Height - height) / 2, width, height, 0x0010 | 0x0004);
     }
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial nint GetWindowLongPtrW(nint hwnd, int index);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial nint SetWindowLongPtrW(nint hwnd, int index, nint value);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     private static partial int SetWindowPos(nint hwnd, nint insertAfter, int x, int y,

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -10,6 +11,8 @@ namespace Boxboard.Tests;
 [TestClass]
 public sealed class MonitorCardLayoutTests
 {
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern nint GetWindowLongPtrW(nint hwnd, int index);
     private const string First = @"\\.\DISPLAY1";
     private const string Second = @"\\.\DISPLAY2";
 
@@ -140,6 +143,11 @@ public sealed class MonitorCardLayoutTests
                 {
                     Assert.IsTrue(badge.Topmost);
                     Assert.IsFalse(badge.ShowInTaskbar);
+                    var handle = new System.Windows.Interop.WindowInteropHelper(badge).Handle;
+                    var exStyle = (long)GetWindowLongPtrW(handle, -20);
+                    // WS_EX_TRANSPARENT so the badge never swallows a click meant for the app under it.
+                    Assert.AreEqual(0x20, exStyle & 0x20);
+                    Assert.AreEqual(0x08000000, exStyle & 0x08000000);
                 }
                 var numbers = badges.SelectMany(badge => MainWindow.Descendants<TextBlock>(badge))
                     .Select(text => text.Text).ToList();
@@ -239,6 +247,45 @@ public sealed class MonitorCardLayoutTests
     {
         for (int attempt = 0; attempt < 20; attempt++)
             await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+    }
+
+    [TestMethod]
+    [DoNotParallelize]
+    public Task Identify_ReEnumeratesSoAMonitorPluggedInLaterGetsACard()
+    {
+        return WpfTestHost.RunAsync(async () =>
+        {
+            var (board, first, _) = await PinnedBoardAsync();
+            var growing = new GrowingMonitors(TwoMonitors().GetMonitors());
+            var window = new MainWindow(board, demo: true, "offline-layout", growing);
+            try
+            {
+                Assert.HasCount(1, growing.Calls);
+                Assert.HasCount(2, window.Cards.Where(card => card.DesktopId == first).ToList());
+
+                growing.Plug(new(@"\\.\DISPLAY3", 3, new(4480, 0, 1280, 1024), new(4480, 0, 1280, 984), false));
+                window.IdentifyMonitors();
+
+                Assert.HasCount(2, growing.Calls);
+                var cards = window.Cards.Where(card => card.DesktopId == first).ToList();
+                Assert.HasCount(3, cards);
+                Assert.AreEqual("Monitor 3", cards[2].MonitorName);
+                Assert.AreEqual("1280 × 1024", cards[2].MonitorDetails);
+            }
+            finally { window.Close(); }
+        }, TimeSpan.FromSeconds(20));
+    }
+
+    private sealed class GrowingMonitors(IReadOnlyList<MonitorInfo> initial) : IMonitors
+    {
+        private List<MonitorInfo> _monitors = [.. initial];
+        public List<int> Calls { get; } = [];
+        public void Plug(MonitorInfo monitor) => _monitors = [.. _monitors, monitor];
+        public IReadOnlyList<MonitorInfo> GetMonitors()
+        {
+            Calls.Add(_monitors.Count);
+            return _monitors;
+        }
     }
 
     [TestMethod]
