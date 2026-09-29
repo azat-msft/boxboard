@@ -21,6 +21,14 @@ public sealed class NativeWindowTests
             [new(@"\\.\DISPLAY1", 1, new(0, 0, 2560, 1440), new(0, 0, 2560, 1400), true)];
     }
 
+    [TestMethod]
+    public void WindowsAppOkButton_ControlIdZeroIsUsable()
+    {
+        NativeSessionWindows.EnsureUsableDialogButtonId(0);
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            NativeSessionWindows.EnsureUsableDialogButtonId(-1));
+    }
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "MessageBoxW")]
     private static extern int ShowMessageBox(nint owner, string message, string caption, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "FindWindowW")]
