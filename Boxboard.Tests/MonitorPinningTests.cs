@@ -96,6 +96,28 @@ public sealed class MonitorPinningTests
     }
 
     [TestMethod]
+    public async Task PinLayout_DoesNotChangeAnotherDesktopsAssignments()
+    {
+        var board = await LoadAsync();
+        var firstDesktop = Guid.NewGuid();
+        var secondDesktop = Guid.NewGuid();
+        await board.SelectDesktopAsync(firstDesktop, "Desktop 1");
+        var firstSlots = board.GetSlots(firstDesktop).ToArray();
+        await board.SelectDesktopAsync(secondDesktop, "Desktop 2");
+        await board.EnsureFourCellsAsync();
+        var secondSlots = board.GetSlots(secondDesktop).ToArray();
+
+        await board.PinLayoutAsync(firstDesktop, First, 1);
+        await board.PinLayoutAsync(secondDesktop, Second, 2);
+
+        CollectionAssert.AreEqual(firstSlots, board.GetSlots(new LayoutKey(firstDesktop, First)).ToArray());
+        CollectionAssert.AreEqual(secondSlots, board.GetSlots(new LayoutKey(secondDesktop, Second)).ToArray());
+        Assert.IsFalse(board.HasLayout(firstDesktop));
+        Assert.IsFalse(board.HasLayout(secondDesktop));
+        board.Settings.Validate();
+    }
+
+    [TestMethod]
     public async Task PinLayout_RejectsAnAlreadyPinnedLayout()
     {
         var board = await LoadAsync();

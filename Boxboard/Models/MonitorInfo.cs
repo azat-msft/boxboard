@@ -1,15 +1,19 @@
 namespace Boxboard.Models;
 
 /// <summary>
-/// A physical display. <see cref="Id"/> is the Windows adapter device name
-/// (<c>\\.\DISPLAY1</c>), which is also what the Windows display settings number.
+/// A physical display. <see cref="Id"/> is its monitor device path when Windows
+/// provides one, not the session-dependent GDI name (for example \\.\DISPLAY1).
 /// </summary>
 public sealed record MonitorInfo(string Id, int Number, PixelRect Bounds, PixelRect WorkArea,
     bool Primary, bool Available = true)
 {
+    public string? GdiDeviceName { get; init; }
+    public bool? IsBuiltIn { get; init; }
+    public bool StableIdentity { get; init; } = true;
     public string Name => $"Monitor {Number}";
     public string Description => Available
-        ? $"{Bounds.Width} × {Bounds.Height}{(Primary ? " · primary" : "")}"
+        ? $"{Bounds.Width} × {Bounds.Height}{(Primary ? " · primary" : "")}" +
+            (StableIdentity ? "" : " · pin may change")
         : "Disconnected";
 }
 

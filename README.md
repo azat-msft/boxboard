@@ -68,10 +68,14 @@ assignments.
 - **Identify monitors** shows each monitor's number on that monitor for a few
   seconds. Boxboard numbers monitors from left to right, so use this to tell
   which card is which before dragging Dev Boxes into it. A Dev Box stays pinned
-  to its monitor even if the numbering shifts, because the pin uses the
-  monitor's device identity.
+  to its monitor if the numbering shifts, as long as Windows continues to
+  report the same monitor device path. If Windows does not provide a device
+  path, the card says **pin may change** because the fallback uses a temporary
+  display name.
 - Layouts saved by an earlier version are pinned automatically on first start:
-  each one keeps the monitor it was already using. If a pinned monitor is
+  a running assigned client identifies the monitor. Otherwise, Boxboard picks
+  the only external monitor if there is exactly one, or the primary monitor,
+  and records the choice in its log. If a pinned monitor is
   disconnected, its card stays with the assignments saved but cannot be edited
   until the monitor is back.
 - Choose **2 × 2**, **Side by side**, **Large left + 2**, or **One window**

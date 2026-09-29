@@ -498,22 +498,43 @@ public partial class MainWindow : Window
         .SelectMany(desktop => _monitorChoices.Select(monitor => new LayoutKey(desktop.Id, monitor.Id)));
 
     /// <summary>
-    /// Layouts saved before monitor pinning existed keep working: each one is pinned to the
-    /// monitor it was already using, which is where its assigned client sits, or Boxboard's own.
+    /// A running assigned client identifies its monitor. Without one, prefer a single
+    /// external monitor; otherwise use the active primary rather than guessing from Boxboard's position.
     /// </summary>
     private async Task PinSavedLayoutsAsync(MonitorInfo boardMonitor)
     {
         var manager = _windows ?? throw new InvalidOperationException("Window integration is unavailable.");
+        var fallbackCount = 0;
+        MonitorInfo? fallbackMonitor = null;
+        var soleExternal = _monitorChoices.Count(choice => choice.Available && choice.IsBuiltIn == false) == 1;
+        string FallbackReason(MonitorInfo monitor) => soleExternal
+            ? "the only external monitor" : monitor.Primary ? "the primary monitor" : "the available monitor";
         foreach (var layout in _board.Layouts.Where(layout => layout.MonitorId is null).ToList())
         {
-            var monitor = MonitorFor(LegacyWorkArea(manager, layout.Key, boardMonitor.WorkArea));
+            var anchorArea = LegacyWorkArea(manager, layout.Key);
+            var monitor = anchorArea is { } area
+                ? MonitorFor(area)
+                : MonitorShell.ChooseMigrationMonitor(_monitorChoices, boardMonitor);
             await _board.PinLayoutAsync(layout.Key, monitor.Id, monitor.Number, _lifetime.Token);
-            _log.Write("Monitors", $"Pinned the saved {layout.Name} layout to {monitor.Name}.");
+            if (anchorArea is null)
+            {
+                fallbackCount++;
+                fallbackMonitor = monitor;
+            }
+            _log.Write("Monitors", anchorArea is null
+                ? $"No assigned client was open for {layout.Name}; pinned its saved layout to {monitor.Name} " +
+                  $"({FallbackReason(monitor)})."
+                : $"Pinned the saved {layout.Name} layout to {monitor.Name} based on an assigned client.");
         }
+        if (fallbackMonitor is not null)
+            _notifyIcon?.ShowBalloonTip(6000, "Saved layouts pinned",
+                $"No assigned client was open for {fallbackCount} saved layout(s). Pinned to " +
+                $"{fallbackMonitor.Name} ({FallbackReason(fallbackMonitor)}).",
+                Forms.ToolTipIcon.Info);
     }
 
-    /// <summary>Where an unpinned layout used to land: its assigned client's monitor, else Boxboard's.</summary>
-    private PixelRect LegacyWorkArea(NativeSessionWindows manager, LayoutKey key, PixelRect fallback)
+    /// <summary>Where an unpinned layout used to land, if its assigned client is open.</summary>
+    private PixelRect? LegacyWorkArea(NativeSessionWindows manager, LayoutKey key)
     {
         var assignedNames = _board.GetSlots(key).Where(slot => slot.MachineId is not null)
             .Select(slot => _board.GetMachine(slot.MachineId!).OriginalName)
@@ -521,7 +542,7 @@ public partial class MainWindow : Window
         var anchor = manager.Enumerate().FirstOrDefault(window =>
             window.DesktopId == key.DesktopId && assignedNames.Contains(window.Title));
         if (anchor is null)
-            return fallback;
+            return null;
         using var target = new NativeSessionWindows(anchor.Identity.Handle);
         return target.MonitorWorkArea();
     }
@@ -543,7 +564,7 @@ public partial class MainWindow : Window
         var initialArea = key.MonitorId is { } monitorId
             ? (_monitorChoices.FirstOrDefault(monitor => monitor.Id == monitorId)
                 ?? throw new InvalidOperationException("The pinned monitor is not connected.")).WorkArea
-            : LegacyWorkArea(manager, key, manager.MonitorWorkArea());
+            : LegacyWorkArea(manager, key) ?? manager.MonitorWorkArea();
         var desktopId = key.DesktopId;
         PixelRect Area() => PinnedWorkArea(key, initialArea);
         var targetWindows = new TargetSessionWindows(manager, desktopId, Area,

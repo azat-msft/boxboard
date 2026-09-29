@@ -8,6 +8,40 @@ namespace Boxboard.Tests;
 public sealed class MonitorShellTests
 {
     [TestMethod]
+    public void MigrationWithoutAnOpenClient_UsesOnlyExternalOrPrimaryMonitor()
+    {
+        var builtIn = new MonitorInfo("internal-path", 1, new(0, 0, 1920, 1080),
+            new(0, 0, 1920, 1040), true) { IsBuiltIn = true };
+        var external = new MonitorInfo("external-path", 2, new(1920, 0, 2560, 1440),
+            new(1920, 0, 2560, 1400), false) { IsBuiltIn = false };
+        Assert.AreEqual(external, MonitorShell.ChooseMigrationMonitor([builtIn, external], builtIn));
+
+        var secondExternal = external with { Id = "second-external-path", Number = 3 };
+        Assert.AreEqual(builtIn,
+            MonitorShell.ChooseMigrationMonitor([builtIn, external, secondExternal], external));
+        Assert.AreEqual(builtIn, MonitorShell.ChooseMigrationMonitor([builtIn], builtIn));
+        Assert.AreEqual(builtIn,
+            MonitorShell.ChooseMigrationMonitor([builtIn, external with { IsBuiltIn = null }], external));
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            MonitorShell.ChooseMigrationMonitor([external with { Available = false }], builtIn));
+    }
+
+    [TestMethod]
+    public void DisplayConfigInterop_MatchesNativeStructLayouts()
+    {
+        Assert.AreEqual((72, 64, 84, 420), MonitorShell.NativeStructSizes);
+    }
+
+    [TestMethod]
+    public void PersistentId_UsesTheTargetPathOrMarksGdiFallback()
+    {
+        Assert.AreEqual(@"\\?\DISPLAY#MONITOR#123", MonitorShell.PersistentId(
+            @"\\.\DISPLAY3", @"\\?\DISPLAY#MONITOR#123"));
+        Assert.AreEqual(@"gdi:\\.\DISPLAY3", MonitorShell.PersistentId(@"\\.\DISPLAY3", null));
+        Assert.AreEqual(@"gdi:\\.\DISPLAY3", MonitorShell.PersistentId(@"\\.\DISPLAY3", ""));
+    }
+
+    [TestMethod]
     public void Number_OrdersMonitorsLeftToRightRegardlessOfTheAdapterDeviceName()
     {
         var numbered = MonitorShell.Number(
@@ -44,6 +78,10 @@ public sealed class MonitorShellTests
             monitors.Select(monitor => monitor.Number).ToArray());
         foreach (var monitor in monitors)
         {
+            Assert.IsFalse(string.IsNullOrWhiteSpace(monitor.GdiDeviceName));
+            Assert.AreEqual(monitor.StableIdentity, !monitor.Id.StartsWith("gdi:", StringComparison.Ordinal));
+            if (!monitor.StableIdentity)
+                StringAssert.Contains(monitor.Description, "pin may change");
             Assert.IsGreaterThan(0, monitor.Bounds.Width);
             Assert.IsGreaterThan(0, monitor.WorkArea.Height);
             Assert.IsTrue(monitor.Bounds.Contains(monitor.WorkArea),
